@@ -87,9 +87,13 @@ class _CameraScreenState extends State<CameraScreen>
   String modifyCameraName(String name) {
     int i = name.indexOf('(');
     if (i > 0) {
-      return name.substring(0, i - 1);
+      name = name.substring(0, i);
     }
-    return name;
+    i = name.indexOf('<');
+    if (i > 0) {
+      name = name.substring(0, i);
+    }
+    return name.trim();
   }
 
   Future<XFile?> takePicture() async {
@@ -146,89 +150,92 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Stack(children: [
-      _isCameraInitialized
-          ? Center(
-              child: AspectRatio(
-              aspectRatio: controller!.value.aspectRatio,
-              child: controller!.buildPreview(),
-            ))
-          : Container(),
-      Padding(
-        padding: const EdgeInsets.fromLTRB(
-          16.0,
-          8.0,
-          16.0,
-          8.0,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(10.0),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: 8.0,
-                    right: 8.0,
+        body: _isCameraInitialized
+            ? Stack(children: [
+                Center(
+                    child: AspectRatio(
+                  aspectRatio: controller!.value.aspectRatio,
+                  child: controller!.buildPreview(),
+                )),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    16.0,
+                    8.0,
+                    16.0,
+                    8.0,
                   ),
-                  child: DropdownButton<CameraDescription>(
-                    dropdownColor: Colors.black87,
-                    underline: Container(),
-                    value: controller!.description,
-                    items: [
-                      for (CameraDescription camera in cameras)
-                        DropdownMenuItem(
-                          child: Text(
-                            modifyCameraName(camera.name),
-                            style: const TextStyle(color: Colors.white),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(10.0),
                           ),
-                          value: camera,
-                        )
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              left: 8.0,
+                              right: 8.0,
+                            ),
+                            child: DropdownButton<CameraDescription>(
+                              dropdownColor: Colors.black87,
+                              underline: Container(),
+                              value: controller!.description,
+                              items: [
+                                for (CameraDescription camera in cameras)
+                                  DropdownMenuItem(
+                                    child: Text(
+                                      modifyCameraName(camera.name),
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                    ),
+                                    value: camera,
+                                  )
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _isCameraInitialized = false;
+                                });
+                                onNewCameraSelected(value!);
+                              },
+                              hint: const Text("Select item"),
+                            ),
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () async {
+                          XFile? rawImage = await takePicture();
+                          File imageFile = File(rawImage!.path);
+
+                          try {
+                            int currentUnix =
+                                DateTime.now().millisecondsSinceEpoch;
+                            final directory =
+                                await getApplicationDocumentsDirectory();
+                            String fileFormat = imageFile.path.split('.').last;
+
+                            await imageFile.copy(
+                              '${directory.path}/$currentUnix.$fileFormat',
+                            );
+                          } catch (e) {
+                            print('Error occurred while taking picture: $e');
+                          }
+                        },
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Icon(Icons.circle, color: Colors.red, size: 80),
+                            Icon(Icons.circle, color: Colors.white, size: 65),
+                          ],
+                        ),
+                      )
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _isCameraInitialized = false;
-                      });
-                      onNewCameraSelected(value!);
-                    },
-                    hint: const Text("Select item"),
                   ),
                 ),
-              ),
-            ),
-            InkWell(
-              onTap: () async {
-                XFile? rawImage = await takePicture();
-                File imageFile = File(rawImage!.path);
-
-                try {
-                  int currentUnix = DateTime.now().millisecondsSinceEpoch;
-                  final directory = await getApplicationDocumentsDirectory();
-                  String fileFormat = imageFile.path.split('.').last;
-
-                  await imageFile.copy(
-                    '${directory.path}/$currentUnix.$fileFormat',
-                  );
-                } catch (e) {
-                  print('Error occurred while taking picture: $e');
-                }
-              },
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(Icons.circle, color: Colors.red, size: 80),
-                  Icon(Icons.circle, color: Colors.white, size: 65),
-                ],
-              ),
-            )
-          ],
-        ),
-      ),
-    ]));
+              ])
+            : Container());
   }
 }
